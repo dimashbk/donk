@@ -3,7 +3,7 @@
 An in-app debugger for iOS. It covers network traffic (HTTP, gRPC, WebView), UI inspection, push simulation, file and UserDefaults browsing, performance monitoring and crash reports. The UI is native SwiftUI.
 
 - **iOS 15+**, Swift 5.9+ (Xcode 15+), SPM
-- No resources and no third-party dependencies: the `Donk` package resolves nothing else. The gRPC interceptor is an optional sub-package.
+- No resources. `Donk` itself has no third-party code; the package declares grpc-swift, swift-protobuf and swift-nio only for the optional `DonkGRPC` product.
 - Opens from a floating bubble, by shaking the device, or with `Donk.show()`
 
 ## Features
@@ -23,17 +23,18 @@ An in-app debugger for iOS. It covers network traffic (HTTP, gRPC, WebView), UI 
 ## Installation
 
 ```swift
-.package(url: "https://github.com/dimashbk/donk.git", from: "0.1.0")
+.package(url: "https://github.com/dimashbk/donk.git", from: "0.2.0")
 ```
 
-The main package has zero dependencies. Its products are `Donk` (everything) and `DonkCore` (models, stores, rules and exporters, with no UI).
+Products:
 
-### DonkGRPC (optional)
+- **`Donk`:** everything.
+- **`DonkCore`:** models, stores, rules and exporters, with no UI.
+- **`DonkGRPC`:** the grpc-swift 1.x interceptor (grpc-swift `1.21.0..<2.0.0`, swift-protobuf `1.25+`).
 
-The grpc-swift 1.x interceptor lives in a standalone sub-package at `Integrations/DonkGRPC`, so apps without gRPC never fetch grpc-swift and its transitive packages, and apps that already link grpc-swift keep a single copy. It depends on the public `DonkCore` API only (grpc-swift `1.21.0..<2.0.0`, swift-protobuf `1.25+`). Two ways to use it:
+SwiftPM resolves the grpc-swift dependencies for every consumer of the package, but only targets that link `DonkGRPC` build them.
 
-- Add it as a local package from a checkout of donk (for example a git submodule): `.package(path: "Vendor/donk/Integrations/DonkGRPC")`, product `DonkGRPC`. The sub-package refers to its parent by path (`../..`), so add donk itself from the same checkout (`.package(path: "Vendor/donk")`) rather than by URL. In Xcode or XcodeGen, add both folders as local packages (see `Example/project.yml`).
-- Copy `Integrations/DonkGRPC/Sources/DonkGRPC` into the module that already owns your gRPC clients and depend on the `DonkCore` product.
+If your app already links grpc-swift, add donk in the same place (the same `Package.swift` or the same Xcode project packages), so that SwiftPM resolves one grpc-swift. Link `Donk` and `DonkGRPC` into the image that already contains GRPC. That keeps one copy of GRPC and one of DonkCore. See [docs/DONKGRPC.md](docs/DONKGRPC.md).
 
 ### Integration notes
 

@@ -7,8 +7,6 @@ options:
 packages:
   Donk:
     path: ..
-  DonkGRPC:
-    path: ../Integrations/DonkGRPC
   GRPC:
     url: https://github.com/grpc/grpc-swift.git
     majorVersion: 1.21.0
@@ -24,7 +22,7 @@ targets:
     dependencies:
       - package: Donk
         product: Donk
-      - package: DonkGRPC
+      - package: Donk
         product: DonkGRPC
       - package: GRPC
         product: GRPC

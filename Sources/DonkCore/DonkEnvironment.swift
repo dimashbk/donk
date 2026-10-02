@@ -3,7 +3,7 @@ import Combine
 import Foundation
 
 public enum DonkEnvironment {
-    public static let version = "0.1.0"
+    public static let version = "0.2.0"
 
     public static let internalRequestKey = "dev.donk.internal-request"
 

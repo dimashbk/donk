@@ -2,7 +2,7 @@
 
 A grpc-swift 1.x `ClientInterceptor` that feeds donk's network inspector. Every RPC becomes one live entry with its metadata, a timeline of sent and received messages (rendered as JSON, with protobuf text format as a fallback), trailers and the final status. Map Local, Rewrite and Breakpoint rules work for gRPC calls too.
 
-DonkGRPC is a separate package so that apps without gRPC never fetch grpc-swift, and apps that already link grpc-swift keep a single copy. It only uses the public `DonkCore` API.
+DonkGRPC is a product of the root donk package and only uses the public `DonkCore` API.
 
 - grpc-swift `1.21.0..<2.0.0` (NIO and NIOTransportServices channels both work)
 - swift-protobuf `1.25.0` or later
@@ -10,28 +10,19 @@ DonkGRPC is a separate package so that apps without gRPC never fetch grpc-swift,
 
 ## Adding it
 
-### As a local package
-
-The package refers to the root donk package by path (`../..`), so both must come from the same checkout, for example a git submodule at `Vendor/donk`:
-
 ```swift
 dependencies: [
-    .package(path: "Vendor/donk"),
-    .package(path: "Vendor/donk/Integrations/DonkGRPC"),
+    .package(url: "https://github.com/dimashbk/donk.git", from: "0.2.0"),
 ],
 targets: [
     .target(name: "Networking", dependencies: [
-        .product(name: "Donk", package: "Donk"),
-        .product(name: "DonkGRPC", package: "DonkGRPC"),
+        .product(name: "Donk", package: "donk"),
+        .product(name: "DonkGRPC", package: "donk"),
     ]),
 ]
 ```
 
-In Xcode or XcodeGen, add both folders as local packages. `Example/project.yml` does exactly that.
-
-### By copying the sources
-
-Copy `Sources/DonkGRPC` into the module that already owns your gRPC clients and add the `DonkCore` product of donk to that module. The sources need `GRPC`, `SwiftProtobuf`, `NIOCore` and `NIOHPACK`, which a grpc-swift client module already links. Keep the files together and don't edit them, so that updating is a plain copy.
+If grpc-swift already lives in a dynamic framework of your app, link `Donk` and `DonkGRPC` into that same framework. The app and its other modules can import the modules from there. This keeps one copy of GRPC and one copy of DonkCore (the ObjC runtime warns about `DonkCoreImageSentinel` if DonkCore ends up in two images). Add donk where grpc-swift is declared, so that SwiftPM resolves a single grpc-swift.
 
 ## Wiring the interceptor
 

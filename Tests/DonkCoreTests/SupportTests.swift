@@ -32,7 +32,7 @@ final class DonkEnvironmentTests: XCTestCase {
     }
 
     func testVersion() {
-        XCTAssertEqual(DonkEnvironment.version, "0.1.0")
+        XCTAssertEqual(DonkEnvironment.version, "0.2.0")
         XCTAssertEqual(HARExporter.creatorVersion, DonkEnvironment.version)
     }
 

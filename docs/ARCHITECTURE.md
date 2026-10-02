@@ -8,7 +8,7 @@ This document is the contract between modules. Public signatures listed here are
 
 ```
 donk/
-  Package.swift                      swift-tools-version:5.9, Swift 5 language mode, platforms: [.iOS(.v15)], no dependencies
+  Package.swift                      swift-tools-version:5.9, Swift 5 language mode, platforms: [.iOS(.v15)]; dependencies (grpc-swift 1.x, swift-protobuf, swift-nio, swift-nio-http2) used only by DonkGRPC
   Sources/
     DonkJSON/                        Foundation only. Order-preserving JSON parser/printer (JSONValue, JSONFormatting). Shared by Core and UI
     DonkCore/                        Foundation + Combine only (+ DonkJSON, re-exported). Models, stores, rules, breakpoints, gRPC recorder, exporters, search, JSON, persistence, swizzling helpers
@@ -23,13 +23,8 @@ donk/
     DonkPush/                        Push simulation, templates, history, token
     DonkStorage/                     Files browser, UserDefaults editor, Keychain viewer
     Donk/                            Umbrella: public facade `Donk`, launcher (bubble, shake), debugger window, home dashboard, settings. @_exported imports (not DonkUI)
-  Tests/<Target>Tests/
-  Integrations/
-    DonkGRPC/                        Standalone sub-package (own Package.swift): grpc-swift 1.x ClientInterceptor feeding DonkCore
-      Package.swift                  tools 5.9, iOS 15; depends on the root via .package(name: "Donk", path: "../.."), grpc-swift 1.21..<2,
-                                     swift-protobuf 1.25+, swift-nio (NIOCore), swift-nio-http2 (NIOHPACK)
-      Sources/DonkGRPC/
-      Tests/DonkGRPCTests/           Protos/ excluded from the target
+    DonkGRPC/                        grpc-swift 1.x ClientInterceptor feeding DonkCore (+ grpc-swift, swift-protobuf, NIOCore, NIOHPACK)
+  Tests/<Target>Tests/               DonkGRPCTests: Protos/ excluded from the target
   Example/                           xcodegen project.yml + DonkDemo app (local package dependency)
   docs/
 ```
@@ -40,7 +35,7 @@ Dependency graph:
 DonkJSON ── DonkCore, DonkUI
 DonkCore ─┬─ DonkNetwork
           ├─ DonkWebView
-          ├─ DonkGRPC (sub-package; + grpc-swift 1.x, swift-protobuf, NIOCore, NIOHPACK; public DonkCore API only)
+          ├─ DonkGRPC (+ grpc-swift 1.x, swift-protobuf, NIOCore, NIOHPACK; public DonkCore API only)
 DonkUI ───┼─ DonkNetworkUI (+Core)
           ├─ DonkInspector (+Core)
           ├─ DonkPerformance (+Core)
@@ -50,9 +45,9 @@ DonkUI ───┼─ DonkNetworkUI (+Core)
 Donk = all of the above except DonkGRPC
 ```
 
-Products: root package `Donk` (umbrella) and `DonkCore` (what DonkGRPC links); sub-package `Integrations/DonkGRPC` → `DonkGRPC`.
+Products: `Donk` (umbrella), `DonkCore` (no UI) and `DonkGRPC` (interceptor).
 
-DonkGRPC lives outside the root package so that consumers of `Donk` fetch no third-party packages and a host that already links grpc-swift never gets a second copy. Because `package` access does not cross package boundaries, DonkGRPC may only use `public` DonkCore API.
+DonkGRPC uses only the `public` DonkCore API. A host that already links grpc-swift should declare donk next to it and link `Donk` + `DonkGRPC` into the same image as GRPC, so there is one copy of GRPC and one copy of DonkCore.
 
 ## Global rules for all code
 
@@ -733,7 +728,7 @@ Umbrella hosting rules (what feature modules can rely on):
 - The scene used for donk windows prefers the scene whose bubble was tapped (or that was shaken), then the key window's scene, then the first foreground-active scene (`DonkWindowManager.activeWindowScene`).
 - The umbrella re-exports DonkCore, DonkJSON and the feature modules, but not DonkUI (its generically named types would leak into hosts). Code that uses DonkUI types imports `DonkUI` explicitly.
 
-## DonkGRPC (sub-package, binding)
+## DonkGRPC (binding)
 
 ```swift
 public struct DonkGRPCOptions: Sendable {
