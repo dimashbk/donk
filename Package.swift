@@ -46,7 +46,7 @@ let package = Package(
                 .product(name: "GRPC", package: "grpc-swift"),
                 .product(name: "SwiftProtobuf", package: "swift-protobuf"),
                 .product(name: "NIOCore", package: "swift-nio"),
-                .product(name: "NIOHPACK", package: "swift-nio-http2"),
+                .product(name: "NIOHTTP2", package: "swift-nio-http2"),
             ]
         ),
         .testTarget(
@@ -60,7 +60,7 @@ let package = Package(
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
                 .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
-                .product(name: "NIOHPACK", package: "swift-nio-http2"),
+                .product(name: "NIOHTTP2", package: "swift-nio-http2"),
             ],
             exclude: ["Protos"]
         ),
