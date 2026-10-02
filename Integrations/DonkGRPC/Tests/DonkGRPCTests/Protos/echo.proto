@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package donk.echo.v1;
+
+import "google/protobuf/any.proto";
+
+service Echo {
+  rpc Get(EchoRequest) returns (EchoResponse);
+  rpc Expand(EchoRequest) returns (stream EchoResponse);
+  rpc Collect(stream EchoRequest) returns (EchoResponse);
+  rpc Update(stream EchoRequest) returns (stream EchoResponse);
+}
+
+enum Mood {
+  MOOD_UNSPECIFIED = 0;
+  MOOD_HAPPY = 1;
+  MOOD_GRUMPY = 2;
+}
+
+message EchoRequest {
+  string text = 1;
+  int32 repeat_count = 2;
+  int32 interval_ms = 3;
+  Mood mood = 4;
+  google.protobuf.Any detail = 5;
+  bytes payload = 6;
+}
+
+message EchoResponse {
+  string text = 1;
+  int32 index = 2;
+  Mood mood = 3;
+  google.protobuf.Any detail = 4;
+  bytes payload = 5;
+}
+
+message RegisteredDetail {
+  string note = 1;
+}
+
+message UnregisteredDetail {
+  string secret = 1;
+}
