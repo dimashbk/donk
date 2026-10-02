@@ -12,7 +12,7 @@ DonkGRPC is a product of the root donk package and only uses the public `DonkCor
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/dimashbk/donk.git", from: "0.2.0"),
+    .package(url: "https://github.com/dimashbk/donk.git", from: "0.2.2"),
 ],
 targets: [
     .target(name: "Networking", dependencies: [

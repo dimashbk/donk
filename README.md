@@ -23,7 +23,7 @@ An in-app debugger for iOS. It covers network traffic (HTTP, gRPC, WebView), UI 
 ## Installation
 
 ```swift
-.package(url: "https://github.com/dimashbk/donk.git", from: "0.2.0")
+.package(url: "https://github.com/dimashbk/donk.git", from: "0.2.2")
 ```
 
 Products:
