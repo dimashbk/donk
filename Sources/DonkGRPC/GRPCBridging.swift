@@ -17,6 +17,13 @@ extension HPACKHeaders {
         return result
     }
 
+    var donkTrailers: [HTTPHeader] {
+        donkHeaders.map { header in
+            guard header.name.lowercased() == "grpc-message" else { return header }
+            return HTTPHeader(name: header.name, value: GRPCStatusMessageMarshaller.unmarshall(header.value))
+        }
+    }
+
     init(donkHeaders headers: [HTTPHeader], preservingPseudoHeadersOf original: HPACKHeaders? = nil) {
         var pairs: [(String, String)] = []
         if let original {

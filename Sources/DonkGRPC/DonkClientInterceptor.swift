@@ -498,7 +498,7 @@ public final class DonkClientInterceptor<Request: SwiftProtobuf.Message, Respons
         guard let context else { return }
         isTerminated = true
         terminate(failingHeldWith: GRPCError.AlreadyComplete())
-        log?.finished(code: status.code.rawValue, message: status.message, trailers: trailers.donkHeaders)
+        log?.finished(code: status.code.rawValue, message: status.message, trailers: trailers.donkTrailers)
         context.receive(.end(status, trailers))
     }
 
