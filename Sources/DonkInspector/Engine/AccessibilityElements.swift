@@ -9,7 +9,7 @@ struct ElementSummary: Equatable {
 }
 
 @MainActor
-enum AccessibilityElements {
+package enum AccessibilityElements {
     private struct Entry {
         weak var element: NSObject?
         weak var container: UIView?
@@ -47,7 +47,7 @@ enum AccessibilityElements {
         )
     }
 
-    static func children(of element: NSObject) -> [NSObject] {
+    package static func children(of element: NSObject) -> [NSObject] {
         if let elements = element.accessibilityElements, !elements.isEmpty {
             return elements.compactMap { $0 as? NSObject }
         }
@@ -56,7 +56,7 @@ enum AccessibilityElements {
         return (0..<count).compactMap { element.accessibilityElement(at: $0) as? NSObject }
     }
 
-    static func identifier(of object: NSObject) -> String? {
+    package static func identifier(of object: NSObject) -> String? {
         if let identification = object as? UIAccessibilityIdentification {
             return identification.accessibilityIdentifier
         }

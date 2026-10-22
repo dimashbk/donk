@@ -3,6 +3,7 @@ import DonkCore
 import DonkNetwork
 import DonkPerformance
 import DonkPush
+import DonkRemote
 import DonkStorage
 import DonkWebView
 import Foundation
@@ -19,6 +20,7 @@ final class DonkEngine: @unchecked Sendable {
     private var startedWebViews = false
     private var startedPerformance = false
     private var startedPush = false
+    private var startedRemote = false
     private var appliedBypassHosts: [String] = []
 
     var isRunning: Bool {
@@ -67,6 +69,9 @@ final class DonkEngine: @unchecked Sendable {
         if tools.contains(.storage) {
             DonkStorage.configure(configuration.storage)
         }
+        if configuration.remote.isEnabled {
+            DonkRemote.start(configuration.remote)
+        }
 
         let settingsSubscription = NetworkSettingsStore.shared.changes
             .dropFirst()
@@ -84,6 +89,7 @@ final class DonkEngine: @unchecked Sendable {
         startedWebViews = configuration.captureWebViews
         startedPerformance = tools.contains(.performance)
         startedPush = tools.contains(.push)
+        startedRemote = configuration.remote.isEnabled
         appliedBypassHosts = capture.bypassHosts
         cancellables = [settingsSubscription, preferencesSubscription]
         stateLock.unlock()
@@ -110,14 +116,19 @@ final class DonkEngine: @unchecked Sendable {
         let stopWebViews = startedWebViews
         let stopPerformance = startedPerformance
         let stopPush = startedPush
+        let stopRemote = startedRemote
         startedWebViews = false
         startedPerformance = false
         startedPush = false
+        startedRemote = false
         appliedBypassHosts = []
         stateLock.unlock()
 
         DonkEnvironment.setActive(false)
         subscriptions.forEach { $0.cancel() }
+        if stopRemote {
+            DonkRemote.stop()
+        }
         DonkNetworkCapture.stop()
         if stopWebViews {
             DonkWebViewCapture.stop()

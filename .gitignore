@@ -6,3 +6,5 @@ DerivedData/
 xcuserdata/
 Example/*.xcodeproj
 Derived/
+mcp/node_modules/
+mcp/dist/

@@ -1,0 +1,34 @@
+{
+  "name": "donk-hub",
+  "version": "0.1.0",
+  "description": "MCP hub that lets coding agents read what the donk iOS debugger captures",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "donk-hub": "dist/main.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "dev": "tsx src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "fake-app": "tsx src/dev/fakeApp.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "ws": "^8.22.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

@@ -32,11 +32,12 @@ let package = Package(
             dependencies: ["DonkCore", "DonkUI"],
             linkerSettings: [.linkedLibrary("sqlite3")]
         ),
+        .target(name: "DonkRemote", dependencies: ["DonkCore", "DonkUI", "DonkInspector", "DonkCrash"]),
         .target(
             name: "Donk",
             dependencies: [
                 "DonkJSON", "DonkCore", "DonkUI", "DonkNetwork", "DonkNetworkUI", "DonkWebView",
-                "DonkInspector", "DonkPerformance", "DonkCrash", "DonkPush", "DonkStorage",
+                "DonkInspector", "DonkPerformance", "DonkCrash", "DonkPush", "DonkStorage", "DonkRemote",
             ]
         ),
         .target(
@@ -71,5 +72,6 @@ let package = Package(
         .testTarget(name: "DonkCrashTests", dependencies: ["DonkCrash"]),
         .testTarget(name: "DonkPushTests", dependencies: ["DonkPush"]),
         .testTarget(name: "DonkStorageTests", dependencies: ["DonkStorage"]),
+        .testTarget(name: "DonkRemoteTests", dependencies: ["DonkRemote", "DonkCore", "DonkCrash"]),
     ]
 )

@@ -6,6 +6,7 @@
 @_exported import DonkNetworkUI
 @_exported import DonkPerformance
 @_exported import DonkPush
+@_exported import DonkRemote
 @_exported import DonkStorage
 @_exported import DonkWebView
 import Foundation
@@ -16,6 +17,7 @@ public struct DonkConfiguration: Sendable {
     public var performance = PerformanceConfiguration()
     public var push = PushConfiguration()
     public var storage = StorageConfiguration()
+    public var remote = RemoteConfiguration()
     public var showsBubble = true
     public var opensOnShake = true
     public var redaction: RedactionPolicy?

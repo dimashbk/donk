@@ -1,4 +1,5 @@
 import DonkCore
+import DonkRemote
 import DonkUI
 import SwiftUI
 
@@ -13,6 +14,7 @@ struct SettingsView: View {
             redactionSection
             breakpointSection
             dataSection
+            agentSection
             aboutSection
         }
         .donkListStyle()
@@ -189,6 +191,38 @@ struct SettingsView: View {
         } header: {
             DonkSectionHeader("Data", icon: "externaldrive")
         }
+    }
+
+    // MARK: - Agent bridge
+
+    @ViewBuilder
+    private var agentSection: some View {
+        if let remote = model.remoteConfiguration {
+            Section {
+                DonkLabelRow(icon: "terminal", tone: .accent, title: "Agent bridge", subtitle: remote.hubURL.absoluteString) {
+                    StatusPill(model.remoteStatusTitle, tone: model.remoteStatusTone, isLive: model.remoteStatus == .connecting)
+                }
+                .contextMenu {
+                    Button {
+                        DonkPasteboard.copy(remote.hubURL.absoluteString, label: "Hub address")
+                    } label: {
+                        Label("Copy Hub Address", systemImage: "doc.on.doc")
+                    }
+                }
+            } header: {
+                DonkSectionHeader("Agents", icon: "terminal")
+            } footer: {
+                Text(agentFooter(remote))
+            }
+        }
+    }
+
+    private func agentFooter(_ remote: RemoteConfiguration) -> String {
+        if case let .rejected(reason) = model.remoteStatus {
+            return "The hub rejected this app: \(reason). donk retries on the next start."
+        }
+        let redaction = remote.redacts ? "Data is redacted before it leaves the app." : "Redaction is off."
+        return "Coding agents read network traffic, crashes and the UI through donk-hub on your Mac. Read-only. \(redaction)"
     }
 
     // MARK: - About

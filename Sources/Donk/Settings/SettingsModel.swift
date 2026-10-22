@@ -2,6 +2,7 @@ import Combine
 import DonkCore
 import DonkCrash
 import DonkNetwork
+import DonkRemote
 import DonkUI
 import Foundation
 import UIKit
@@ -235,12 +236,14 @@ final class SettingsModel: ObservableObject {
     @Published private(set) var preferences: DonkPreferences
     @Published private(set) var network: NetworkSettings
     @Published private(set) var capturedHosts: [String] = []
+    @Published private(set) var remoteStatus: RemoteStatus
 
     private var cancellables: [AnyCancellable] = []
 
     init() {
         preferences = DonkPreferencesStore.shared.value
         network = NetworkSettingsStore.shared.settings
+        remoteStatus = DonkRemote.status
         cancellables = [
             DonkPreferencesStore.shared.changes
                 .receive(on: DispatchQueue.main)
@@ -251,6 +254,11 @@ final class SettingsModel: ObservableObject {
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] value in
                     MainActor.assumeIsolated { self?.network = value }
+                },
+            DonkRemote.statusChanges
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] value in
+                    MainActor.assumeIsolated { self?.remoteStatus = value }
                 },
         ]
     }
@@ -402,6 +410,32 @@ final class SettingsModel: ObservableObject {
         DonkHaptics.selection()
         DonkPreferencesStore.shared.update { $0.breakpointTimeout = value }
         DonkLiveSettings.apply(DonkPreferencesStore.shared.value)
+    }
+
+    // MARK: - Agent bridge
+
+    var remoteConfiguration: RemoteConfiguration? {
+        guard DonkEngine.shared.isRunning else { return nil }
+        let remote = DonkEngine.shared.currentConfiguration.remote
+        return remote.isEnabled ? remote : nil
+    }
+
+    var remoteStatusTitle: String {
+        switch remoteStatus {
+        case .stopped: return "Stopped"
+        case .connecting: return "Connecting"
+        case .connected: return "Connected"
+        case .rejected: return "Rejected"
+        }
+    }
+
+    var remoteStatusTone: DonkTone {
+        switch remoteStatus {
+        case .stopped: return .neutral
+        case .connecting: return .warning
+        case .connected: return .success
+        case .rejected: return .error
+        }
     }
 
     // MARK: - Reset

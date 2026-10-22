@@ -37,25 +37,12 @@ final class ScreenSnapshot {
 
     static func capture(for overlay: UIWindow) -> ScreenSnapshot? {
         let windows = ViewHierarchy.windowsBackToFront(in: overlay.windowScene)
-        let bounds = overlay.bounds
-        guard !windows.isEmpty, bounds.width > 0, bounds.height > 0 else { return nil }
         let scale = overlay.screen.scale
-        let width = Int((bounds.width * scale).rounded())
-        let height = Int((bounds.height * scale).rounded())
-        guard let canvas = PixelCanvas(width: width, height: height, scale: scale),
-              let scratch = PixelCanvas(width: width, height: height, scale: scale) else { return nil }
-        for window in windows {
-            let rect = window.frame == overlay.frame ? window.bounds : window.convert(window.bounds, to: overlay)
-            let method = SnapshotMethod.preferred(for: window)
-            scratch.clear()
-            scratch.draw(window, in: rect, method: method)
-            if method == .hierarchy, SnapshotMethod.hasContent(window), scratch.isBlank(in: rect) {
-                scratch.clear()
-                scratch.draw(window, in: rect, method: .layer)
-            }
-            canvas.composite(scratch)
+        let canvas = SnapshotRenderer.render(windows, size: overlay.bounds.size, scale: scale) { window in
+            window.frame == overlay.frame ? window.bounds : window.convert(window.bounds, to: overlay)
         }
-        return ScreenSnapshot(width: width, height: height, scale: scale, pixels: canvas.bytes())
+        guard let canvas else { return nil }
+        return ScreenSnapshot(width: canvas.width, height: canvas.height, scale: scale, pixels: canvas.bytes())
     }
 
     func pixelCoordinate(for point: CGPoint) -> (x: Int, y: Int) {
@@ -90,6 +77,33 @@ final class ScreenSnapshot {
 }
 
 // MARK: - Rendering
+
+@MainActor
+package enum SnapshotRenderer {
+    package static func image(of windows: [UIWindow], size: CGSize, scale: CGFloat, frame: (UIWindow) -> CGRect) -> CGImage? {
+        render(windows, size: size, scale: scale, frame: frame)?.image()
+    }
+
+    fileprivate static func render(_ windows: [UIWindow], size: CGSize, scale: CGFloat, frame: (UIWindow) -> CGRect) -> PixelCanvas? {
+        guard !windows.isEmpty, size.width > 0, size.height > 0, scale > 0 else { return nil }
+        let width = Int((size.width * scale).rounded())
+        let height = Int((size.height * scale).rounded())
+        guard let canvas = PixelCanvas(width: width, height: height, scale: scale),
+              let scratch = PixelCanvas(width: width, height: height, scale: scale) else { return nil }
+        for window in windows {
+            let rect = frame(window)
+            let method = SnapshotMethod.preferred(for: window)
+            scratch.clear()
+            scratch.draw(window, in: rect, method: method)
+            if method == .hierarchy, SnapshotMethod.hasContent(window), scratch.isBlank(in: rect) {
+                scratch.clear()
+                scratch.draw(window, in: rect, method: .layer)
+            }
+            canvas.composite(scratch)
+        }
+        return canvas
+    }
+}
 
 enum SnapshotMethod: Equatable {
     case hierarchy
@@ -212,8 +226,12 @@ private final class PixelCanvas {
     }
 
     func composite(_ other: PixelCanvas) {
-        guard let image = other.context.makeImage() else { return }
+        guard let image = other.image() else { return }
         context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+    }
+
+    func image() -> CGImage? {
+        context.makeImage()
     }
 
     func bytes() -> [UInt8] {

@@ -4,12 +4,12 @@ import UIKit
 // MARK: - Type names
 
 @MainActor
-enum TypeNaming {
+package enum TypeNaming {
     private static var qualifiedCache: [ObjectIdentifier: String] = [:]
     private static var moduleCache: [ObjectIdentifier: String] = [:]
     private static var categoryCache: [ObjectIdentifier: ViewCategory] = [:]
 
-    static func qualifiedName(of object: AnyObject) -> String {
+    package static func qualifiedName(of object: AnyObject) -> String {
         let type: AnyClass = Swift.type(of: object)
         let key = ObjectIdentifier(type)
         if let cached = qualifiedCache[key] { return cached }
@@ -18,7 +18,7 @@ enum TypeNaming {
         return name
     }
 
-    static func displayName(of object: AnyObject, includesModule: Bool) -> String {
+    package static func displayName(of object: AnyObject, includesModule: Bool) -> String {
         let qualified = qualifiedName(of: object)
         return includesModule ? qualified : stripModules(qualified)
     }
@@ -39,7 +39,7 @@ enum TypeNaming {
         return module
     }
 
-    static func isHostingView(_ view: UIView) -> Bool {
+    package static func isHostingView(_ view: UIView) -> Bool {
         let name = qualifiedName(of: view)
         return name.contains("HostingView") && (name.hasPrefix("SwiftUI.") || name.hasPrefix("_UIHostingView"))
     }

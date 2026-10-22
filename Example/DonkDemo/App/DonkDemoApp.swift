@@ -27,6 +27,13 @@ final class DemoAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
         if let tools = UserDefaults.standard.string(forKey: "DonkTools") {
             configuration.tools = Set(tools.split(separator: ",").compactMap { DonkTool(rawValue: String($0)) })
         }
+        #if DEBUG
+        let defaults = UserDefaults.standard
+        configuration.remote.isEnabled = defaults.object(forKey: "DonkRemote") == nil || defaults.bool(forKey: "DonkRemote")
+        if let hub = defaults.string(forKey: "DonkHubURL"), let url = URL(string: hub) {
+            configuration.remote.hubURL = url
+        }
+        #endif
         Donk.start(configuration)
         DemoLaunchOptions.apply()
         DemoDiagnostics.applyLaunchArguments()

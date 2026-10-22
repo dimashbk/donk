@@ -22,10 +22,12 @@ donk/
     DonkCrash/                       Crash reports: install, parse, symbolicate, MetricKit, UI
     DonkPush/                        Push simulation, templates, history, token
     DonkStorage/                     Files browser, UserDefaults editor, Keychain viewer
+    DonkRemote/                      Agent bridge: Network.framework WebSocket client to donk-hub, read-only JSON-RPC handlers (network, crashes, UI tree, screenshot). See DONKREMOTE.md
     Donk/                            Umbrella: public facade `Donk`, launcher (bubble, shake), debugger window, home dashboard, settings. @_exported imports (not DonkUI)
     DonkGRPC/                        grpc-swift 1.x ClientInterceptor feeding DonkCore (+ grpc-swift, swift-protobuf, NIOCore, NIOHPACK)
   Tests/<Target>Tests/               DonkGRPCTests: Protos/ excluded from the target
   Example/                           xcodegen project.yml + DonkDemo app (local package dependency)
+  mcp/                               donk-hub: TypeScript MCP server the apps dial (not part of the Swift package, see mcp/README.md)
   docs/
 ```
 
@@ -41,7 +43,8 @@ DonkUI ───┼─ DonkNetworkUI (+Core)
           ├─ DonkPerformance (+Core)
           ├─ DonkCrash (+Core, +DonkCrashC)
           ├─ DonkPush (+Core)
-          └─ DonkStorage (+Core)
+          ├─ DonkStorage (+Core)
+          └─ DonkRemote (+Core, +DonkInspector, +DonkCrash)
 Donk = all of the above except DonkGRPC
 ```
 
@@ -681,6 +684,26 @@ public enum DonkStorage {
     @MainActor public static func makeRootView() -> AnyView
 }
 
+// DonkRemote (wire protocol and JSON shapes: docs/DONKREMOTE.md)
+public struct RemoteConfiguration: Sendable {
+    public var isEnabled = false
+    public var hubURL = URL(string: "ws://127.0.0.1:7337/app")!
+    public var redacts = true                                           // false: nothing is redacted (local experiments only)
+    public var redaction: RedactionPolicy? = nil                        // nil: NetworkSettingsStore.shared.settings.redaction
+    public init()
+}
+public enum RemoteStatus: Equatable, Sendable { case stopped, connecting, connected, rejected(String) }
+public enum DonkRemote {
+    public static func start(_ configuration: RemoteConfiguration)    // no-op when !isEnabled; a new start replaces the client and the session
+    public static func stop()
+    public static var status: RemoteStatus { get }
+    public static var statusChanges: AnyPublisher<RemoteStatus, Never> { get }   // current value first
+}
+// Internals: RemoteClient (NWConnection + NWProtocolWebSocket, one serial queue, backoff 1…30 s, autoReplyPing on),
+// RemoteRequestHandler (pure JSON-RPC dispatch over an injected RemoteContext: NetworkStore, settings, rules, crash and UI providers, clock),
+// RemoteUITree/LiveUIProvider (main actor, DonkWindowManager scene rules). DonkInspector exposes `package` TypeNaming
+// (qualifiedName, displayName, isHostingView), AccessibilityElements (children, identifier) and SnapshotRenderer for it.
+
 // Donk (umbrella)
 public struct DonkConfiguration: Sendable {
     public var network = NetworkCaptureConfiguration()
@@ -688,6 +711,7 @@ public struct DonkConfiguration: Sendable {
     public var performance = PerformanceConfiguration()
     public var push = PushConfiguration()
     public var storage = StorageConfiguration()
+    public var remote = RemoteConfiguration()                          // agent bridge, off by default
     public var showsBubble = true
     public var opensOnShake = true
     public var redaction: RedactionPolicy? = nil                      // non-nil: replaces NetworkSettings.redaction at start (persisted)
@@ -721,6 +745,7 @@ Umbrella hosting rules (what feature modules can rely on):
 - Inspector modes started from the bubble menu or the home quick toggles hide the debugger first; the umbrella also hides the debugger when `DonkInspector.activeMode` changes while it is open.
 - Launcher preferences, `NetworkStore.isCaptureEnabled` and the breakpoint auto-resume timeout are persisted by the umbrella in `preferences.json`; network limits, host lists and the export redaction policy live in `NetworkSettingsStore`.
 - `DonkEngine.start` calls `DonkEnvironment.setActive(true)` once capture layers run, and `stop` calls `setActive(false)` first. `BreakpointCoordinator` sets `BreakpointCenter.shared.hasPresenter` on start/stop. `DebuggerPresenter` reports show/hide through `DonkEnvironment.setDebuggerVisible`. `DonkRuntime` installs `DonkEnvironment.hideDebuggerHandler` (hide without animation) on start and clears it on stop.
+- `DonkEngine.start` calls `DonkRemote.start(configuration.remote)` only when `remote.isEnabled`, and `Donk.stop()` stops it. While it is enabled, Settings shows an "Agent bridge" row with the hub address and the live `RemoteStatus`.
 - `DonkConfiguration.tools` (default: every `DonkTool`) gates tools. A disabled tool is not started and not shown: without `.performance` `DonkPerformance.start` is not called and the FPS HUD toggle/quick action disappear; without `.push` `DonkPush.start` is not called; without `.storage` `DonkStorage.configure` is skipped and the Storage tile is hidden; without `.inspector` the UI Inspector tile, the home quick toggles and the bubble's inspector actions are hidden; without `.crashes` the Crashes tile is hidden (installing the reporter stays a separate `Donk.installCrashReporter()` call); without `.network`/`.rules`/`.settings` the matching tile, banner or row is hidden. Network capture itself is controlled by `network.isEnabled`, not by `.network`. `Donk.show(_:)` for a disabled tool stays on Home and logs a notice. `Donk.stop()` stops what `start` started (capture, web views, performance, push).
 - Every `DonkTool` is reachable through `Donk.show(_:)` at any time: Home keeps a hidden navigation link per enabled tool, independent of banners (for example `.rules` opens with zero active rules). A route to a tool that cannot be shown is cleared instead of being kept for later.
 - The debugger window (`DonkKeyWindow`) is shown visible but **not key**, so host code that finds "the key window" (`topMostViewController()`, loader overlays, push routing) keeps targeting the app window while donk is open; host presentations land under donk and are visible once it closes. The window becomes key only while one of its text inputs is editing and hands key status back to the app window when editing ends, the keyboard hides, and on hide. Ordinary taps (buttons, toggles, lists) never make it key, not even briefly: `canBecomeKey` is true only right after a touch lands on a text field, text view or search bar, or while one is editing. Opening donk ends editing in the app window so the host keyboard does not cover donk.
