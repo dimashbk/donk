@@ -139,6 +139,8 @@ final class NetworkListModel: ObservableObject {
     @Published private(set) var isCaptureEnabled: Bool
     @Published private(set) var activeRuleCount = 0
     @Published private(set) var rulesEnabled = true
+    @Published private(set) var isSelecting = false
+    @Published private(set) var selection = NetworkSelection()
     @Published var searchText = ""
     @Published var filter = NetworkFilter() {
         didSet {
@@ -245,6 +247,7 @@ final class NetworkListModel: ObservableObject {
         if rows != result.rows {
             rows = result.rows
             displayedIDs = Set(result.rows.map(\.id))
+            pruneSelection()
         }
         if counts != result.counts { counts = result.counts }
         if hosts != result.hosts { hosts = result.hosts }
@@ -329,5 +332,56 @@ final class NetworkListModel: ObservableObject {
         store.clear(keepPinned: true)
         DonkHaptics.medium()
         refresh(freeze: false)
+    }
+
+    // MARK: - Selection
+
+    var isAllSelected: Bool {
+        selection.covers(rows.map(\.id))
+    }
+
+    func beginSelection(with id: UUID? = nil) {
+        var next = NetworkSelection()
+        if let id, displayedIDs.contains(id) {
+            next.insert(id)
+        }
+        selection = next
+        isSelecting = true
+        DonkHaptics.light()
+    }
+
+    func endSelection() {
+        isSelecting = false
+        if !selection.isEmpty {
+            selection.removeAll()
+        }
+    }
+
+    func toggleSelection(_ id: UUID) {
+        guard isSelecting, displayedIDs.contains(id) else { return }
+        selection.toggle(id)
+        DonkHaptics.selection()
+    }
+
+    func toggleSelectAll() {
+        guard isSelecting, !rows.isEmpty else { return }
+        if isAllSelected {
+            selection.removeAll()
+        } else {
+            selection.selectAll(rows.map(\.id))
+        }
+        DonkHaptics.selection()
+    }
+
+    func selectedEntries() -> [NetworkEntry] {
+        selection.ordered(rows.map(\.id)).compactMap { store.entry($0) }
+    }
+
+    private func pruneSelection() {
+        guard !selection.isEmpty else { return }
+        var next = selection
+        if next.retain(displayedIDs) {
+            selection = next
+        }
     }
 }

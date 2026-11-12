@@ -51,7 +51,7 @@ Tap the bubble to open donk, long-press it for quick actions (inspector modes, F
 
 Every `URLSession` request: Alamofire, `URLSession.shared`, completion handlers, async/await, uploads, SSE streaming. Full request/response with headers, bodies and real `URLSessionTaskMetrics` (protocol, TLS, timings). Search across any field, host filter, hidden hosts, cURL / HAR / text export, repeat request. Certificate pinning keeps working: auth challenges are forwarded to your session delegate.
 
-Bodies open as a JSON tree, pretty text or raw, with find-in-body. The list is color-coded by status, and entries changed by a rule are tagged **Mocked**, **Rewritten** or **Edited**.
+Bodies open as a JSON tree, pretty text or raw, with find-in-body. The list is color-coded by status, and entries changed by a rule are tagged **Mocked**, **Rewritten** or **Edited**. **Select** in the list lets you tick specific requests and export only those as HAR or text.
 
 <table>
   <tr>
@@ -236,7 +236,7 @@ Phase 1 is read-only and covers simulator apps. Everything goes through the reda
 ## Installation
 
 ```swift
-.package(url: "https://github.com/dimashbk/donk.git", from: "0.2.2")
+.package(url: "https://github.com/dimashbk/donk.git", from: "0.3.0")
 ```
 
 Products:

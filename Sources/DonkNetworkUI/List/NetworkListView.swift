@@ -9,6 +9,7 @@ struct NetworkListView: View {
     @State private var repeatPrompt: RepeatPrompt?
 
     private static let topID = "donk.network.top"
+    private static let selectionAnimation = Animation.spring(response: 0.32, dampingFraction: 0.86)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -21,6 +22,7 @@ struct NetworkListView: View {
         .autocorrectionDisabled(true)
         .textInputAutocapitalization(.never)
         .donkNavigationTitle("Network")
+        .navigationBarBackButtonHidden(model.isSelecting)
         .toolbar { toolbar }
         .sheet(item: $sheet) { sheet in
             sheetContent(sheet)
@@ -57,11 +59,40 @@ struct NetworkListView: View {
         .overlay(alignment: .top) {
             newEntriesPill(proxy)
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            selectionBar
+        }
     }
 
     // MARK: - Rows
 
+    @ViewBuilder
     private func row(_ item: NetworkRowItem) -> some View {
+        if model.isSelecting {
+            selectableRow(item)
+        } else {
+            navigableRow(item)
+        }
+    }
+
+    private func selectableRow(_ item: NetworkRowItem) -> some View {
+        let isSelected = model.selection.contains(item.id)
+        return HStack(spacing: DonkSpacing.s) {
+            SelectionMark(isSelected: isSelected)
+            NetworkRow(item: item)
+                .equatable()
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            model.toggleSelection(item.id)
+        }
+        .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 16))
+        .listRowBackground(isSelected ? DonkColor.accent.opacity(0.08) : nil)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private func navigableRow(_ item: NetworkRowItem) -> some View {
         ZStack {
             NavigationLink {
                 EntryDetailView(id: item.id)
@@ -154,6 +185,13 @@ struct NetworkListView: View {
                 EntryActions.togglePin(item.id)
             } label: {
                 Label(item.isPinned ? "Unpin" : "Pin", systemImage: item.isPinned ? "pin.slash" : "pin")
+            }
+            Button {
+                withAnimation(Self.selectionAnimation) {
+                    model.beginSelection(with: item.id)
+                }
+            } label: {
+                Label("Select", systemImage: "checkmark.circle")
             }
         }
         Section {
@@ -361,30 +399,70 @@ struct NetworkListView: View {
         }
     }
 
+    // MARK: - Selection
+
+    @ViewBuilder
+    private var selectionBar: some View {
+        if model.isSelecting {
+            SelectionBar(
+                count: model.selection.count,
+                total: model.rows.count,
+                exportHAR: {
+                    EntryActions.shareHAR(model.selectedEntries(), fileName: EntryActions.exportFileName("har"))
+                },
+                exportText: {
+                    EntryActions.shareAllText(model.selectedEntries(), fileName: EntryActions.exportFileName("txt"))
+                }
+            )
+            .padding(.horizontal, DonkSpacing.l)
+            .padding(.vertical, DonkSpacing.s)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
     // MARK: - Toolbar
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .navigationBarTrailing) {
-            Button {
-                sheet = .rules
-            } label: {
-                HStack(spacing: 3) {
-                    Image(systemName: "slider.horizontal.3")
-                    if model.rulesEnabled && model.activeRuleCount > 0 {
-                        Text("\(model.activeRuleCount)")
-                            .font(.caption.weight(.bold))
-                            .monospacedDigit()
+        ToolbarItem(placement: .navigationBarLeading) {
+            if model.isSelecting {
+                Button(model.isAllSelected ? "Deselect All" : "Select All") {
+                    withAnimation(Self.selectionAnimation) {
+                        model.toggleSelectAll()
                     }
                 }
+                .disabled(model.rows.isEmpty)
             }
-            .accessibilityLabel("Rules")
-            Menu {
-                moreMenu
-            } label: {
-                Image(systemName: "ellipsis.circle")
+        }
+        ToolbarItemGroup(placement: .navigationBarTrailing) {
+            if model.isSelecting {
+                Button("Cancel") {
+                    withAnimation(Self.selectionAnimation) {
+                        model.endSelection()
+                    }
+                }
+                .font(.body.weight(.semibold))
+            } else {
+                Button {
+                    sheet = .rules
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "slider.horizontal.3")
+                        if model.rulesEnabled && model.activeRuleCount > 0 {
+                            Text("\(model.activeRuleCount)")
+                                .font(.caption.weight(.bold))
+                                .monospacedDigit()
+                        }
+                    }
+                }
+                .accessibilityLabel("Rules")
+                Menu {
+                    moreMenu
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .accessibilityLabel("More")
             }
-            .accessibilityLabel("More")
         }
     }
 
@@ -408,6 +486,14 @@ struct NetworkListView: View {
             }
         }
         Section {
+            Button {
+                withAnimation(Self.selectionAnimation) {
+                    model.beginSelection()
+                }
+            } label: {
+                Label("Select", systemImage: "checkmark.circle")
+            }
+            .disabled(model.rows.isEmpty)
             Menu {
                 Button {
                     EntryActions.shareHAR(model.filteredEntries(), fileName: EntryActions.exportFileName("har"))
@@ -465,6 +551,73 @@ enum ListSheet: Identifiable {
         case .rules: return "rules"
         case let .newRule(draft): return "rule-\(draft.id)"
         }
+    }
+}
+
+// MARK: - Selection bar
+
+private struct SelectionMark: View {
+    let isSelected: Bool
+
+    var body: some View {
+        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+            .font(.title3)
+            .foregroundColor(isSelected ? DonkColor.accent : DonkColor.textTertiary)
+            .frame(width: 26)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct SelectionBar: View {
+    let count: Int
+    let total: Int
+    let exportHAR: () -> Void
+    let exportText: () -> Void
+
+    var body: some View {
+        HStack(spacing: DonkSpacing.m) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(count == 0 ? "Select requests" : "\(DonkFormat.number(count)) selected")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DonkColor.textPrimary)
+                    .monospacedDigit()
+                Text(count == 0 ? "Tap rows to export" : "of \(DonkFormat.number(total)) shown")
+                    .font(.caption)
+                    .foregroundColor(DonkColor.textSecondary)
+                    .monospacedDigit()
+            }
+            .lineLimit(1)
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: DonkSpacing.s)
+            Menu {
+                Button(action: exportHAR) {
+                    Label("HAR", systemImage: "doc.zipper")
+                }
+                Button(action: exportText) {
+                    Label("Text", systemImage: "doc.plaintext")
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.footnote.weight(.bold))
+                    Text("Export")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .foregroundColor(count == 0 ? DonkColor.textTertiary : .white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Capsule().fill(count == 0 ? DonkColor.fill : DonkColor.accent))
+                .contentShape(Capsule())
+            }
+            .disabled(count == 0)
+            .accessibilityLabel(count == 1 ? "Export 1 request" : "Export \(count) requests")
+        }
+        .padding(.leading, DonkSpacing.xl)
+        .padding(.trailing, 6)
+        .padding(.vertical, 6)
+        .donkGlassBackground(Capsule(), interactive: true)
+        .donkFloatingShadow()
+        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: count == 0)
     }
 }
 

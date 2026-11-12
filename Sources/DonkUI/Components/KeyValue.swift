@@ -134,8 +134,8 @@ public struct KeyValueRow: View {
                     .font(monospacedValue ? DonkFont.code : .footnote)
                     .foregroundColor(DonkColor.textSecondary)
                 Image(systemName: "eye")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(DonkColor.textTertiary)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DonkColor.accent)
                     .accessibilityHidden(true)
             }
         } else {
@@ -193,6 +193,7 @@ public struct HeaderListView: View {
     private let embedInCard: Bool
     private let keyWidth: CGFloat?
     private let masksKey: ((String) -> Bool)?
+    @State private var revealsMasked = false
 
     public init(
         _ items: [DonkKeyValue],
@@ -233,7 +234,19 @@ public struct HeaderListView: View {
     }
 
     private func isMasked(_ item: DonkKeyValue) -> Bool {
-        masksKey?(item.key) ?? false
+        !revealsMasked && (masksKey?(item.key) ?? false)
+    }
+
+    private var hasMaskableValues: Bool {
+        guard let masksKey else { return false }
+        return items.contains { masksKey($0.key) && !$0.value.isEmpty }
+    }
+
+    private func toggleRevealsMasked() {
+        DonkHaptics.selection()
+        withAnimation(.easeOut(duration: 0.15)) {
+            revealsMasked.toggle()
+        }
     }
 
     public var body: some View {
@@ -263,6 +276,17 @@ public struct HeaderListView: View {
     private var accessory: some View {
         if !items.isEmpty {
             HStack(spacing: DonkSpacing.s) {
+                if hasMaskableValues {
+                    Button(action: toggleRevealsMasked) {
+                        Image(systemName: revealsMasked ? "eye.slash" : "eye")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundColor(DonkColor.accent)
+                            .frame(minWidth: 32, minHeight: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel(revealsMasked ? "Hide secret values" : "Reveal secret values")
+                }
                 Text("\(items.count)")
                     .font(.caption.weight(.semibold))
                     .monospacedDigit()

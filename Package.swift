@@ -68,6 +68,7 @@ let package = Package(
         .testTarget(name: "DonkJSONTests", dependencies: ["DonkJSON"]),
         .testTarget(name: "DonkCoreTests", dependencies: ["DonkCore"]),
         .testTarget(name: "DonkNetworkTests", dependencies: ["DonkNetwork"]),
+        .testTarget(name: "DonkNetworkUITests", dependencies: ["DonkNetworkUI"]),
         .testTarget(name: "DonkPerformanceTests", dependencies: ["DonkPerformance"]),
         .testTarget(name: "DonkCrashTests", dependencies: ["DonkCrash"]),
         .testTarget(name: "DonkPushTests", dependencies: ["DonkPush"]),
